@@ -13,16 +13,29 @@ class PostcodeController < ApplicationController
     req = Net::HTTP::Get.new('http://postcodes.io/postcodes/' + request[:postcode])
     res = Net::HTTP.start(url.host, url.port) { |http| http.request(req) }
 
-    @greeting = 'unknown'
+    p res.body
+
     case res
     when Net::HTTPSuccess
       body = JSON.parse(res.body)
       # puts "#{body['result']['lsoa'].start_with?('Lambeth', 'Southwark')}"
-      @greeting = body['result']['lsoa'] if body['result']['lsoa'].start_with?('Lambeth', 'Southwark')
+      @greeting =
+        if body['result']['lsoa'].start_with?('Lambeth', 'Southwark')
+          res.body
+        else
+          'postcode ignored'
+        end
+
+    when Net::HTTPNotFound
+      hash = JSON.parse(res.body)
+      @greeting =
+        if hash['error'] == 'Postcode not found'
+          request[:postcode]
+        elsif hash['error'] == 'Invalid postcode'
+          'Invalid postcode'
+        end
     else
-      # puts "*** #{request['postcode']}"
-      @greeting = request['postcode']
-      # res.value
+      @greeting = 'not servable'
     end
 
     # redirect_to index_url, greeting: "You have successfully logged out."
